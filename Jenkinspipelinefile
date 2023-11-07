@@ -1,0 +1,31 @@
+node{
+echo "The Job name is : ${env.JOB_NAME}"
+echo "The Build number is : ${env.BUILD_NUMBER}"
+echo "The Node name is : ${env.NODE_NAME}"
+echo "The Home Dir is : ${env.JENKINS_HOME}"
+
+properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), [$class: 'JobLocalConfiguration', changeReasonComment: ''], pipelineTriggers([pollSCM('* * * * *')])])
+    def mavenHome = tool name : "maven 3.9.5"
+    
+    stage('CheckoutCode'){
+       git branch: 'development', credentialsId: '88516bd8-05e2-4dcb-98fa-788a6708f9f3', url: 'https://github.com/d22sharm1-banking/maven-web-application.git'
+    }
+    
+    stage('Build'){
+        sh "${mavenHome}/bin/mvn clean package"
+    }
+    
+    stage ('ExecuteSonarQubeReport'){
+    sh "${mavenHome}/bin/mvn clean sonar:sonar"    
+    }
+    
+     stage ('UploadIntoNexus'){
+    sh "${mavenHome}/bin/mvn clean deploy"   
+}
+stage ('DelpoyAppIntoTomcat'){
+sshagent(['c22c0c38-093b-46fc-87a5-b415bf525bc1']) {
+ sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@172.31.36.39:/opt/apache-tomcat-9.0.82/webapps/ "
+}   
+}
+
+}
